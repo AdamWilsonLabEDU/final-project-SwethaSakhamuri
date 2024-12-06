@@ -52,6 +52,7 @@ if (!requireNamespace("tidyverse", quietly = TRUE)) install.packages("tidyverse"
 if (!requireNamespace("gifski", quietly = TRUE)) install.packages("gifski", type = "binary")
 if (!requireNamespace("knitr", quietly = TRUE)) install.packages("knitr")
 if (!requireNamespace("geofacet", quietly = TRUE)) install.packages("geofacet")
+if (!requireNamespace("plotly", quietly = TRUE)) install.packages("plotly")
 
 library(dplyr)
 library(ggplot2)
@@ -62,6 +63,7 @@ library(tidyverse)
 library(gifski)
 library(knitr)
 library(geofacet)
+library(plotly)
 ```
 
 ### Load the monthly dataset 
@@ -164,8 +166,6 @@ ggplot(annual_data, aes(x = Year, y = Unemployment_rate, color = State, group = 
   labs(title = "Unemployment Rate Over Time by State", x = "Year", y = "Unemployment Rate (%)") +
   theme_minimal() +
   transition_reveal(Year)
-
-library(plotly)
 ```
 
 # Interactive Line Plot to know about the Employment rates

@@ -1,12 +1,15 @@
 ---
 title: "Comparing Unemployment Rates Across U.S. States During Economic Recessions"
 author: "Swetha"
-date: "2024-11-14"
-output: html_document
+subtitle: GEO511
+date: today
+date-format: long
+format:
+  html:
+    code-fold: true
 ---
 
 ```{r setup, include=FALSE}
-
 ```
 
 
@@ -15,14 +18,31 @@ This project analyzes unemployment rate fluctuations across U.S. states during t
 
 ## Materials and Methods
 
-### Data Sources
+### **Data Collection and Preparation**
+Leveraged datasets from the U.S. Bureau of Labor Statistics and supplementary geospatial sources. Utilized `read.csv()` and `dplyr` for comprehensive data cleaning, focusing on precise filtering and formatting of columns including `State`, `Year`, and `Unemployment_rate`.
+
+
+### **Visualization and Analysis**
+Developed comprehensive visualization strategies using:
+
+- **`ggplot2`**: For generating detailed static maps.
+- **`gganimate`**: For creating temporal trend animations.
+- **`maps` package**: For foundational U.S. base map layers.
+- **`gifski`**: For high-quality animated graphic exports.
+
+The methodology transforms complex unemployment data into clear, engaging visual narratives that reveal nuanced economic patterns across geographic and temporal dimensions.
+
+### **Data Sources**
 1. **U.S. Bureau of Labor Statistics (BLS):** Monthly state-level unemployment data.
 2. **U.S. Census Bureau:** State population estimates.
+
 
 ### Data Cleaning and Preparation
 The following code loads, cleans, and aggregates the data.
 ### Load libraries
-```{r}
+
+Let's install the following required libraries. 
+```{r,message = FALSE, warning=FALSE, results=FALSE}
 if (!requireNamespace("gganimate", quietly = TRUE)) install.packages("gganimate")
 if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
 if (!requireNamespace("sf", quietly = TRUE)) install.packages("sf")
@@ -30,6 +50,8 @@ if (!requireNamespace("maps", quietly = TRUE)) install.packages("maps")
 if (!requireNamespace("ggplot2", quietly = TRUE)) install.packages("ggplot2")
 if (!requireNamespace("tidyverse", quietly = TRUE)) install.packages("tidyverse")
 if (!requireNamespace("gifski", quietly = TRUE)) install.packages("gifski", type = "binary")
+if (!requireNamespace("knitr", quietly = TRUE)) install.packages("knitr")
+if (!requireNamespace("geofacet", quietly = TRUE)) install.packages("geofacet")
 
 library(dplyr)
 library(ggplot2)
@@ -38,15 +60,21 @@ library(sf)
 library(maps)
 library(tidyverse)
 library(gifski)
+library(knitr)
+library(geofacet)
 ```
 
 ### Load the monthly dataset 
+
+Loading the States Unemployment Dataset
 ```{r}
 data <- read.csv("data/States_Unemploment_Data.csv")
 ```
 
 ### Data Cleaning Steps
-```{r}
+
+The following code has the data cleaning code and getting the summary of the data. 
+```{r,message = FALSE, warning=FALSE, results=FALSE}
 # 1. Drop duplicate rows
 data <- data %>% distinct()
 
@@ -66,8 +94,8 @@ data <- data %>%
 summary(data)
 ```
 
-### Aggregate data by State and Year to calculate the annual averages
-```{r}
+### Aggregate data by State and Year to calculate the annual averages and displaying first ten rows.
+```{r,message = FALSE, warning=FALSE}
 annual_data <- data %>%
   group_by(State, Year) %>%
   summarise(
@@ -84,7 +112,14 @@ annual_data <- data %>%
 
 
 # Display the first few rows of the aggregated data
-head(annual_data)
+annual_data %>%
+  head(10) %>%
+  kable(
+    caption = "Summary of Annual Data by State and Year",
+    col.names = c("State", "Year", "Labor Force Participation Ratio", "Employment Participation Ratio",
+                  "Labor Force", "Employment", "Unemployment", "Unemployment Rate", "Latitude", "Longitude"),
+    align = "c"
+  )
 ```
 ### Visualization Techniques
 1. State-Level Map Visualization
@@ -95,7 +130,7 @@ head(annual_data)
 # Results
 ## Map Visualization
 ### The following animated map shows the unemployment rate across states over time. The color scale represents unemployment rate levels.
-```{r}
+```{r,message = FALSE, warning=FALSE}
 us_map <- map_data("state")
 annual_data$region <- tolower(annual_data$State)
 
@@ -123,19 +158,31 @@ ggplot(map_data, aes(long, lat, group = group, fill = Unemployment_rate)) +
 
 # Line Plot of Unemployment Trends
 ### This line plot illustrates unemployment rate trends by state over time.
-```{r}
+```{r,message = FALSE, warning=FALSE}
 ggplot(annual_data, aes(x = Year, y = Unemployment_rate, color = State, group = State)) +
   geom_line(size = 1) +
   labs(title = "Unemployment Rate Over Time by State", x = "Year", y = "Unemployment Rate (%)") +
   theme_minimal() +
   transition_reveal(Year)
 
+library(plotly)
+```
+
+# Interactive Line Plot to know about the Employment rates
+```{r,message = FALSE, warning=FALSE}
+plot_ly(annual_data, x = ~Year, y = ~Unemployment_rate, color = ~State, type = 'scatter', mode = 'lines') %>%
+  layout(
+    title = "Unemployment Rate Trends",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Unemployment Rate (%)")
+  )
+
 #animate(line_plot, nframes = 100, fps = 10,renderer = gifski_renderer())
 ```
 
 # Bar Chart Race of Top 10 States by Unemployment Rate
 ### A bar chart race visualizes the top 10 states with the highest unemployment rate each year.
-```{r}
+```{r,message = FALSE, warning=FALSE}
 top_states <- annual_data %>%
   group_by(Year) %>%
   top_n(10, Unemployment_rate) %>%
@@ -158,6 +205,45 @@ ggplot(top_states, aes(x = reorder(State, -Unemployment_rate), y = Unemployment_
 
 ```
 
+
+## This visualization provides a comparative analysis of key labor market metrics—Unemployment Rate, Labor Force Participation Ratio, and Employment Participation Ratio—across U.S. states. By organizing states geographically using the geofacet package, this plot highlights the variation in these metrics in a spatially intuitive manner.
+```{r,message = FALSE, warning=FALSE}
+geofacet_comparison_data <- annual_data %>%
+  select(State, Year, Unemployment_rate, Labor_Force_Participation_Ratio, Employment_Participation_Ratio) %>%
+  filter(!is.na(Unemployment_rate), 
+         !is.na(Labor_Force_Participation_Ratio),
+         !is.na(Employment_Participation_Ratio)) %>%
+  pivot_longer(
+    cols = c(Unemployment_rate, Labor_Force_Participation_Ratio, Employment_Participation_Ratio),
+    names_to = "Metric",
+    values_to = "Value"
+  )
+
+ggplot(geofacet_comparison_data, aes(y = Metric, x = Value, fill = Metric)) +
+  geom_bar(stat = "identity", position = "dodge") +  
+  facet_geo(~ State, grid = "us_state_grid1") +     
+  scale_fill_manual(
+    values = c(
+      "Unemployment_rate" = "red",
+      "Labor_Force_Participation_Ratio" = "green",
+      "Employment_Participation_Ratio" = "blue"
+    ),
+    name = "Metric"
+  ) +
+  labs(
+    title = "Comparison of Metrics Across U.S. States",
+    x = "Value",
+    y = "Metric",
+    fill = "Metric"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    legend.position = "bottom"
+  )
+
+```
+
 ## Conclusion
 The graphical analysis of U.S. unemployment rates during the 2008 financial crisis and the COVID-19 pandemic highlights significant trends and disparities in economic resilience across states.
 
@@ -165,7 +251,19 @@ The graphical analysis of U.S. unemployment rates during the 2008 financial cris
 
 2. States heavily reliant on specific sectors like tourism and manufacturing (e.g., Nevada and Michigan) faced prolonged high unemployment rates. This suggests that sector-specific economic dependencies can heighten vulnerability during global economic disruptions.
 
-
 3. The line plot of unemployment trends over time reveals that while the 2008 financial crisis caused a relatively uniform spike in unemployment across states, the COVID-19 pandemic led to more varied impacts, with certain states being hit much harder than others. This difference may be attributed to varying public health restrictions, digital adaptability, and government support measures across states.
 
 4. The bar chart race visualization, showing the top 10 states with the highest unemployment rates over time, highlights that certain states consistently appeared in the high-unemployment category across crises. This indicates persistent structural challenges that may require targeted policy interventions.
+
+
+## References
+
+1. Li, J. (2013). Analysis of the High Unemployment Rate in the USA. World Review of Political Economy, 4(2), 218-229.
+
+2. Athar, H. M., Chang, M. H., Hahn, R. A., Walker, E., & Yoon, P. (2013). Unemployment--United States, 2006 and 2010. MMWR: Morbidity & Mortality Weekly Report, 62.
+
+3. Hagen, D., Lai, A. Y., & Goldmann, E. (2022). State-level unemployment and negative emotions throughout the Covid-19 pandemic in the United States. Preventive Medicine, 164, 107239.
+
+4. Yilmazkuday, H. (2020). Unequal unemployment effects of COVID-19 and monetary policy across US States. Journal of Behavioral Economics for Policy, Forthcoming.
+
+
